@@ -1,0 +1,12 @@
+### Clean previous build
+rm -fr eventlogexplorer.egg-info dist build
+
+### Create the WHL file
+python3 setup.py sdist bdist_wheel --universal
+
+### Command to install if needed to test in a virtualenv
+pip3 install dist/eventlogexplorer-0.1.0-py2.py3-none-any.whl
+
+### sample run
+date;python processEventLogLocally.py -e sample_data/eventlog.txt -o log_delivery_output -jr 721 4;date
+

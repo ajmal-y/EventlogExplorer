@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>{{title}}</title>
+<meta charset="utf-8">
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+<script>
+var sptr = '</br>'
+$(document).ready(function() {
+    $('#mainTable').DataTable({
+        "data": jobdata.data,
+        "select": "single",
+        "columns": [
+            { "data": "jgIds",  "title": "Job Id (Group Id)",              render: getJobIdGrpId },
+            { "data": "desc",   "title": "Description",                    render: getDesc },
+            { "data": "subTm",  "title": "Submitted" },
+            { "data": "durTm",  "title": "Duration",                       render: renderTm },
+            { "data": "iSzRc",  "title": "Input</br>Size/Records",         render: renderSzRc },
+            { "data": "oSzRc",  "title": "Output</br>Size/Records",        render: renderSzRc },
+            { "data": "srSzRc", "title": "Shuffle Read</br>Size/Records",  render: renderSzRc },
+            { "data": "swSzRc", "title": "Shuffle Write</br>Size/Records", render: renderSzRc },
+            { "data": "spDMSz", "title": "Spill Size</br>Disk/Memory",     render: renderSzSz },
+            { "data": "stgs",   "title": "Stages:</br>Succeeded/Total",    render: renderSuccTot },
+            { "data": "tsks",   "title": "Tasks:</br>Succeeded/Total",     render: renderSuccTot }
+        ],
+        "lengthMenu": [[200, 500, 1000, -1], [200, 500, 1000, "All"]],
+        "columnDefs": [
+            { targets: [0,1,2], className: 'dt-head-left dt-body-left' },
+            { targets: '_all', className: 'dt-right' }
+        ],
+        "order": [[0, 'asc']]
+    });
+    $('table.row-border').DataTable({
+        paging: false,
+        searching: true,
+        info: false,
+        columnDefs: [{ targets: [1,3], className: 'dt-body-right' },
+                     { targets: "_all", createdCell: function (td) {$(td).css('padding-right', '5px')} } ]
+    });
+});
+function getJobIdGrpId(d, t, r) {
+    if (t == 'display' || t === 'filter') return d[0] + ' (' + d[1] + ')';
+    return d[0];
+}
+function getDesc(d, t, r) {
+    return d[0] + "<br>" + '<span style="color: green;">' + d[1] + '</span>';
+}
+function renderTm(d, t, r) {
+    if (t === 'display' || t === 'filter') { if (d === 0) return '-'; return toDHMS(d); }
+    return d;
+}
+function renderSzRc(d, t, r) {
+    if (t === 'display' || t === 'filter') { if (d[1] === 0) return '-'; return toTGMKB(d[0]) + sptr + commas(d[1]); }
+    return d[1];
+}
+function renderSzSz(d, t, r) {
+    if (t === 'display' || t === 'filter') { if (d[1] === 0) return '-'; return toTGMKB(d[0]) + sptr + toTGMKB(d[1]); }
+    return d[0];
+}
+function renderSuccTot(d, t, r) {
+    if (t === 'display' || t === 'filter') { return d[0]; }
+    return d[1];
+}
+function toDHMS(tm) {
+    if (tm == 0) return '-';
+    if (tm < 1000) return tm + 'ms';
+    var sec = (tm/1000) % 60; var min = Math.floor(tm/60000); var hour = Math.floor(min/60); min = min % 60;
+    ret = ''; if (hour > 0) ret += hour + 'h '; if (min > 0) ret += min + 'm '; if (sec > 0) ret += sec.toFixed(1) + 's';
+    return ret
+}
+function toTGMKB(bytes, separator = ' ') {
+    if (bytes === 0) return '-';
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString(), 10), sizes.length - 1);
+    return `${(bytes / (1024 ** i)).toFixed(i ? 1 : 0)}${separator}${sizes[i]}`;
+}
+function commas(x) {
+    if (x == 0) return '-';
+    var parts = x.toString().split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+}
+var jobdata = { "data": {{tableData|tojson}} };
+</script>
+<style type="text/css">
+table.display td, table.row-border td {
+    padding-right: 5px;
+}
+div.float {
+    display: inline-block;
+    padding: 0px 5px 0px 0px;
+}
+</style>
+</head>
+<body>
+<div style="font-family: Arial, sans-serif; font-size: 0.9em; padding: 12px;">
+  <h1>{{title}}</h1>
+  Report generated on: {{jobInfo.generatedOn}}
+  <div>
+  <div style="display: inline-block; padding: 0px 15px 15px 0px;">
+    <h3 style="border-bottom: 1px solid #111111;" width="100%">Job Details</h3>
+    <table id="jobInfoTable" class="row-border compact stripe">
+    <thead style='display:none;'><tr><th>1</th><th>2</th><th>3</th><th>4</th></tr></thead>
+    <tbody>
+    <tr><td>Databricks Job Id:</td><td>{{jobInfo.dbJobId}}</td> <td>Start Time:</td><td>{{jobInfo.startTime|dt}}</td></tr>
+    <tr><td>Databricks Run Id:</td><td>{{jobInfo.dbRunId}}</td> <td>Completed Time:</td><td>{{jobInfo.endTime|dt}}</td></tr>
+    <tr><td>Cluster Id:</td><td>{{jobInfo.clusterId}}</td> <td>Duration:</td><td>{{jobInfo.duration|tms}}</td></tr>
+
+    <tr><td>Spark Version:</td><td>{{jobInfo.sparkVersion}}</td> <td>Executor Memory:</td><td>{{jobInfo.executorMemory}}</td></tr>
+    <tr><td>Number of Nodes:</td><td>{{jobInfo.noOfNodes}}</td> <td>Scaling Type:</td><td>{{jobInfo.scalingType}}</td></tr>
+    <tr><td>Driver Node Type:</td><td>{{jobInfo.driverNode}}</td> <td>Worker Node Type:</td><td>{{jobInfo.workerNode}}</td></tr>
+    </tbody>
+    </table>
+  </div>
+
+  <div style="display: inline-block; padding: 0px 15px 15px 0px;">
+    <h3 style="border-bottom: 1px solid #111111;" width="100%">Run Details</h3>
+    <table id="statsTable" class="row-border compact stripe">
+    <thead style='display:none;'><tr><th>1</th><th>2</th><th>3</th><th>4</th></tr></thead>
+    <tbody>
+    <tr><td>Jobs Succeeded:</td><td>{{jobStats.succeededJobs|comma}}</td><td>Jobs Failed:</td><td>{{jobStats.failedJobs|comma}}</td></tr>
+    <tr><td>Stages Succeeded:</td><td>{{stageStats.succeededStages|comma}}</td> <td>Stages Failed:</td><td>{{stageStats.failedStages|comma}}</td></tr>
+    <tr><td>Stages Required:</td><td>{{stageStats.requiredStages|comma}}</td> <td>Stages Skipped:</td><td>{{stageStats.skippedStages|comma}}</td></tr>
+    <tr><td>Tasks Succeeded:</td><td>{{taskStats.succeededTasks|comma}}</td> <td>Tasks Failed:</td><td>{{taskStats.failedTasks|comma}}</td></tr>
+    <tr><td>Tasks Required:</td><td>{{taskStats.requiredTasks|comma}}</td> <td>Tasks Skipped:</td><td>{{taskStats.skippedTasks|comma}}</td></tr>
+    <tr><td>Tasks Speculated:</td><td>{{taskStats.speculativeTasks|comma}}</td><td>Tasks Killed:</td><td>{{taskStats.killedTasks|comma}}</td></tr>
+    </tbody>
+    </table>
+  </div>
+  <div style="display: inline-block; padding: 0px 15px 15px 0px;">
+    <h3 style="border-bottom: 1px solid #111111;" width="100%">Aggregated Metrics</h3>
+    <table id="aggrTable" class="row-border compact stripe">
+    <thead style='display:none;'><tr><th>1</th><th>2</th><th>3</th><th>4</th></tr></thead>
+    <tbody>
+    <tr><td>Input Records Read:</td><td>{{metrics.inputRecords|comma}}</td><td>Output Records Written:</td><td>{{metrics.outputRecords|comma}}</td></tr>
+    <tr><td>Input Read (Kb):</td><td>{{metrics.inputSize|comma}}</td><td>Output Written (Kb):</td><td>{{metrics.outputSize|comma}}</td></tr>
+    <tr><td>Shuffle Records Read:</td><td>{{metrics.shuffleReadRecords|comma}}</td><td>Shuffle Records Written:</td><td>{{metrics.shuffleWriteRecords|comma}}</td></tr>
+    <tr><td>Shuffle Read - Remote (Kb):</td><td>{{metrics.shuffleRemoteReadSize|comma}}</td><td>Shuffle Written:</td><td>{{metrics.shuffleWriteSize|comma}}</td></tr>
+    <tr><td>Shuffle Read - Local (Kb):</td><td>{{metrics.shuffleLocalReadSize|comma}}</td><td>Result Size (Kb):</td><td>{{metrics.resultSize|comma}}</td></tr>
+    <tr><td>Spilled Size - Memory (Kb):</td><td>{{metrics.bytesSpilledMemory|comma}}</td><td>Spilled Size - Disk (Kb):</td><td>{{metrics.bytesSpilledDisk|comma}}</td></tr>
+    </tbody>
+    </table>
+  </div>
+
+  <div>
+  <table id="mainTable" class="display" width="100%">
+  <thead>
+  </thead>
+  </table>
+  </div>
+</div>
+</body>
+</html>
